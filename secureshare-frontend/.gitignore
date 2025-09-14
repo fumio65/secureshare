@@ -35,7 +35,7 @@ bower_components
 # Compiled binary addons (https://nodejs.org/api/addons.html)
 build/Release
 
-# Dependency directories
+# Dependencies
 node_modules/
 jspm_packages/
 
@@ -80,9 +80,6 @@ dist
 
 # Gatsby files
 .cache/
-# Comment in the public line in if your project uses Gatsby and not Next.js
-# https://nextjs.org/blog/next-9-1#public-directory-support
-# public
 
 # Vite build output
 dist
@@ -108,3 +105,9 @@ pids
 
 # Optional stylelint cache
 .stylelintcache
+
+# Old ESLint config files
+.eslintrc.cjs
+.eslintrc.js
+.eslintrc.json
+.eslintignore
