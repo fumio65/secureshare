@@ -1,4 +1,3 @@
-import React from 'react';
 import { Link } from 'react-router-dom';
 import { Shield, Lock, Zap, Globe, ArrowRight, Upload, Key, Download } from 'lucide-react';
 
@@ -96,11 +95,11 @@ const HomePage = () => {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {features.map((feature) => {
-              const Icon = feature.icon;
+              const IconComponent = feature.icon;
               return (
                 <div key={feature.title} className="card p-8 text-center card-hover">
                   <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-100 dark:bg-primary-950/30 rounded-2xl mb-6">
-                    <Icon className="h-8 w-8 text-primary-600 dark:text-primary-400" />
+                    <IconComponent className="h-8 w-8 text-primary-600 dark:text-primary-400" />
                   </div>
                   <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
                     {feature.title}
@@ -129,12 +128,12 @@ const HomePage = () => {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {steps.map((step, index) => {
-              const Icon = step.icon;
+              const IconComponent = step.icon;
               return (
                 <div key={step.title} className="relative">
                   <div className="card p-8 text-center h-full">
                     <div className="inline-flex items-center justify-center w-16 h-16 bg-success-100 dark:bg-success-950/30 rounded-2xl mb-6">
-                      <Icon className="h-8 w-8 text-success-600 dark:text-success-400" />
+                      <IconComponent className="h-8 w-8 text-success-600 dark:text-success-400" />
                     </div>
                     <div className="absolute -top-4 -left-4 w-8 h-8 bg-primary-500 text-white rounded-full flex items-center justify-center text-sm font-bold">
                       {index + 1}

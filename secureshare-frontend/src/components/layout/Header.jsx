@@ -1,12 +1,9 @@
-import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Shield, Menu, X } from 'lucide-react';
-import { useTheme } from '../../context/ThemeContext';
 import ThemeToggle from '../common/ThemeToggle';
 import { useState } from 'react';
 
 const Header = () => {
-  const { theme } = useTheme();
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
