@@ -1,4 +1,3 @@
-# backend/core/urls.py
 """
 SecureShare main URL configuration.
 """
