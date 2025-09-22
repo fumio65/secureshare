@@ -1,7 +1,17 @@
 import { Sun, Moon } from 'lucide-react';
-import { useTheme } from '../../hooks/useTheme';
+import ThemeContext from '../../context/theme';
+import { useContext } from 'react';
 
-const ThemeToggle = () => {
+// Define the hook directly in this file for now
+const useTheme = () => {
+  const context = useContext(ThemeContext);
+  if (!context) {
+    throw new Error('useTheme must be used within a ThemeProvider');
+  }
+  return context;
+};
+
+const ThemeToggle = ({ showLabel = false }) => {
   const { theme, toggleTheme } = useTheme();
 
   return (
@@ -26,6 +36,12 @@ const ThemeToggle = () => {
           }`} 
         />
       </div>
+      
+      {showLabel && (
+        <span className="ml-2 text-sm font-medium">
+          {theme === 'light' ? 'Light' : 'Dark'}
+        </span>
+      )}
     </button>
   );
 };
