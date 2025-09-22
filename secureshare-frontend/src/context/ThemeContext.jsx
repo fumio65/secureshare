@@ -1,6 +1,8 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useState, useEffect } from 'react';
 
-export const ThemeContext = createContext();
+// Create context directly in this file to avoid import issues
+const ThemeContext = createContext();
 
 const ThemeProvider = ({ children }) => {
   const [theme, setTheme] = useState(() => {
@@ -47,4 +49,6 @@ const ThemeProvider = ({ children }) => {
   );
 };
 
+// Export context for hook usage
+export { ThemeContext };
 export default ThemeProvider;
