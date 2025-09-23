@@ -1,18 +1,8 @@
-import { useContext, useEffect, useState } from 'react';
-import ThemeContext from '../context/theme';
+import { useEffect, useState } from 'react';
+import { useTheme as useThemeFromContext } from '../context/ThemeContext';
 
-export const useTheme = () => {
-  const context = useContext(ThemeContext);
-  
-  if (!context) {
-    throw new Error(
-      'useTheme must be used within a ThemeProvider. ' +
-      'Make sure your component is wrapped with <ThemeProvider>.'
-    );
-  }
-  
-  return context;
-};
+// Re-export the centralized useTheme hook
+export const useTheme = () => useThemeFromContext();
 
 // Additional hook for listening to theme changes
 export const useThemeListener = (callback) => {

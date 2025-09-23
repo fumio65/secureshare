@@ -125,7 +125,7 @@ const ThemeDemoPage = () => {
                   <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
                     Dropdown Variant
                   </label>
-                  <ThemeToggle variant="dropdown" />
+                  <ThemeToggle />
                 </div>
 
                 <div className="flex gap-2">
