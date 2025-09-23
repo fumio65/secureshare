@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { User, Lock, Dashboard, Download, AlertCircle } from 'lucide-react';
+import { User, Lock, LayoutDashboard, Download, AlertCircle } from 'lucide-react';
 
 export const LoginPage = () => {
   return (
@@ -60,7 +60,7 @@ export const DashboardPage = () => {
     <div className="min-h-screen bg-gray-50 dark:bg-dark-900 py-12">
       <div className="container-custom">
         <div className="text-center mb-8">
-          <Dashboard className="mx-auto h-12 w-12 text-primary-600 mb-4" />
+          <LayoutDashboard className="mx-auto h-12 w-12 text-primary-600 mb-4" />
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
             Dashboard
           </h1>

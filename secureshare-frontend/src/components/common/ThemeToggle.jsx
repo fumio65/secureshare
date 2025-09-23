@@ -1,15 +1,5 @@
 import { Sun, Moon } from 'lucide-react';
-import ThemeContext from '../../context/theme';
-import { useContext } from 'react';
-
-// Define the hook directly in this file for now
-const useTheme = () => {
-  const context = useContext(ThemeContext);
-  if (!context) {
-    throw new Error('useTheme must be used within a ThemeProvider');
-  }
-  return context;
-};
+import { useTheme } from '../../context/ThemeContext';
 
 const ThemeToggle = ({ showLabel = false }) => {
   const { theme, toggleTheme } = useTheme();

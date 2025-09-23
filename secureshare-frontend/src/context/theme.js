@@ -1,6 +1,5 @@
-import { createContext } from 'react';
+import { ThemeContext } from './ThemeContext';
 
-// Export the context from a dedicated file
-export const ThemeContext = createContext();
-
+// Re-export ThemeContext from ThemeContext.jsx to ensure a single source of truth
+export { ThemeContext };
 export default ThemeContext;

@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import React, { createContext, useState, useEffect } from 'react';
+import React, { createContext, useState, useEffect, useContext } from 'react';
 
 // Create context directly in this file to avoid import issues
 const ThemeContext = createContext();
@@ -39,7 +39,8 @@ const ThemeProvider = ({ children }) => {
     theme,
     setTheme,
     toggleTheme,
-    isDark: theme === 'dark'
+    isDark: theme === 'dark',
+    isLight: theme === 'light',
   };
 
   return (
@@ -47,6 +48,15 @@ const ThemeProvider = ({ children }) => {
       {children}
     </ThemeContext.Provider>
   );
+};
+
+// Centralized hook to consume theme
+export const useTheme = () => {
+  const context = useContext(ThemeContext);
+  if (!context) {
+    throw new Error('useTheme must be used within a ThemeProvider');
+  }
+  return context;
 };
 
 // Export context for hook usage
