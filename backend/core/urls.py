@@ -1,27 +1,25 @@
-# backend/core/urls.py
-"""
-SecureShare main URL configuration.
-"""
 from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from rest_framework import permissions
 from django.http import JsonResponse
 
 def api_root(request):
-    """API root endpoint with basic information."""
+    """API root endpoint"""
     return JsonResponse({
-        'message': 'Welcome to SecureShare API',
+        'message': 'SecureShare API',
         'version': '1.0',
         'endpoints': {
-            'auth': '/api/auth/',
+            'authentication': '/api/auth/',
             'files': '/api/files/',
             'payments': '/api/payments/',
+            'admin': '/admin/',
         }
     })
 
 urlpatterns = [
-    # Admin interface
+    # Admin
     path('admin/', admin.site.urls),
     
     # API root
@@ -30,14 +28,14 @@ urlpatterns = [
     # Authentication endpoints
     path('api/auth/', include('accounts.urls')),
     
-    # File management endpoints
+    # Files endpoints (to be implemented)
     path('api/files/', include('files.urls')),
     
-    # Payment endpoints
+    # Payments endpoints (to be implemented)
     path('api/payments/', include('payments.urls')),
 ]
 
-# Serve media files in development
+# Serve media files during development
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
