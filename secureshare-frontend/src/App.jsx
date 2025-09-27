@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import ThemeProvider from './context/ThemeContext';
 import Layout from './components/layout/Layout';
 import HomePage from './pages/HomePage';
+import ComponentDemoPage from './pages/ComponentDemoPage';
 import { LoginPage, RegisterPage, DashboardPage, DownloadPage, NotFoundPage } from './pages/PlaceholderPages';
 
 function App() {
@@ -15,6 +16,7 @@ function App() {
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/d/:id" element={<DownloadPage />} />
             <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/components" element={<ComponentDemoPage />} />
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </Layout>
