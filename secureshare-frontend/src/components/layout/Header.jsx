@@ -14,7 +14,7 @@ const Header = () => {
 
   const authLinks = [
     { name: 'Login', href: '/login' },
-    { name: 'Sign Up', href: '/register' },
+    { name: 'Sign Up', href: '/signup' },
   ];
 
   return (
