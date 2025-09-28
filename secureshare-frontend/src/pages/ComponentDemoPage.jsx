@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Palette, Download, Mail, Search } from 'lucide-react';
-import CustomButton from '../components/common/CustomButton';
-import CustomInput from '../components/common/CustomInput';
+import CustomButton from '../components/forms/CustomButton';
+import CustomInput from '../components/forms/CustomButton'
 import Modal, { ModalHeader, ModalBody, ModalFooter } from '../components/common/Modal';
 import Alert from '../components/common/Alert';
 import Card, { CardHeader, CardBody, CardFooter, CardTitle, CardDescription } from '../components/common/Card';
