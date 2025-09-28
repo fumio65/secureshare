@@ -1,27 +1,42 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import ThemeProvider from './context/ThemeContext';
-import Layout from './components/layout/Layout';
-import HomePage from './pages/HomePage';
-import ComponentDemoPage from './pages/ComponentDemoPage';
-import { LoginPage, RegisterPage, DashboardPage, DownloadPage, NotFoundPage } from './pages/PlaceholderPages';
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext';
+import { ThemeProvider } from './context/ThemeContext';
+import ProtectedRoute from './components/auth/ProtectedRoute';
+import HomePage from './components/layout/HomePage';
+import LoginForm from './components/auth/LoginForm';
 import RegistrationForm from './components/auth/RegistrationForm';
+import Dashboard from './components/layout/Dashboard';
+import './index.css';
 
 function App() {
   return (
     <ThemeProvider>
-      <Router>
-        <Layout>
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/signup" element={<RegistrationForm />} />
-            <Route path="/d/:id" element={<DownloadPage />} />
-            <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/components" element={<ComponentDemoPage />} />
-            <Route path="*" element={<NotFoundPage />} />
-          </Routes>
-        </Layout>
-      </Router>
+      <AuthProvider>
+        <Router>
+          <div className="App">
+            <Routes>
+              {/* Public Routes */}
+              <Route path="/" element={<HomePage />} />
+              <Route path="/login" element={<LoginForm />} />
+              <Route path="/register" element={<RegistrationForm />} />
+              
+              {/* Protected Routes */}
+              <Route 
+                path="/dashboard" 
+                element={
+                  <ProtectedRoute>
+                    <Dashboard />
+                  </ProtectedRoute>
+                } 
+              />
+              
+              {/* Redirect unknown routes */}
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </div>
+        </Router>
+      </AuthProvider>
     </ThemeProvider>
   );
 }
