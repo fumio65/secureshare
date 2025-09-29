@@ -1,3 +1,6 @@
+// src/components/auth/LoginForm.jsx
+// Fixed version with correct icon
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -147,13 +150,13 @@ const LoginForm = () => {
 
         <div className="text-center">
           <div className="mx-auto h-12 w-12 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
-            <UserPlus className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+            <LogIn className="h-6 w-6 text-blue-600 dark:text-blue-400" />
           </div>
           <h2 className="mt-6 text-3xl font-extrabold text-gray-900 dark:text-white">
-            Create your account
+            Sign in to your account
           </h2>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-            Join SecureShare for secure file transfers
+            Welcome back to SecureShare
           </p>
         </div>
 
@@ -162,36 +165,6 @@ const LoginForm = () => {
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <CustomInput
-                label="First Name"
-                name="first_name"
-                type="text"
-                value={formData.first_name}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                error={errors.first_name}
-                touched={touched.first_name}
-                placeholder="John"
-                required
-                autoComplete="given-name"
-              />
-
-              <CustomInput
-                label="Last Name"
-                name="last_name"
-                type="text"
-                value={formData.last_name}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                error={errors.last_name}
-                touched={touched.last_name}
-                placeholder="Doe"
-                required
-                autoComplete="family-name"
-              />
-            </div>
-
             <CustomInput
               label="Email Address"
               name="email"
@@ -201,7 +174,7 @@ const LoginForm = () => {
               onBlur={handleBlur}
               error={errors.email}
               touched={touched.email}
-              placeholder="john@example.com"
+              placeholder="Enter your email"
               required
               autoComplete="email"
             />
@@ -214,33 +187,35 @@ const LoginForm = () => {
               onBlur={handleBlur}
               error={errors.password}
               touched={touched.password}
-              placeholder="Create a strong password"
-              showStrengthIndicator
+              placeholder="Enter your password"
               required
-              autoComplete="new-password"
-            />
-
-            <PasswordInput
-              label="Confirm Password"
-              name="password_confirm"
-              value={formData.password_confirm}
-              onChange={handleChange}
-              onBlur={handleBlur}
-              error={errors.password_confirm}
-              touched={touched.password_confirm}
-              placeholder="Confirm your password"
-              required
-              autoComplete="new-password"
+              autoComplete="current-password"
             />
           </div>
 
-          <div className="text-xs text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
-            <p className="font-medium mb-1">By creating an account, you agree to our:</p>
-            <ul className="space-y-1">
-              <li>• Password requirements: 8+ characters with uppercase, lowercase, and number</li>
-              <li>• File encryption: All uploads are automatically encrypted with AES-256</li>
-              <li>• Privacy: We never access your decrypted files</li>
-            </ul>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <input
+                id="remember_me"
+                name="remember_me"
+                type="checkbox"
+                checked={formData.remember_me}
+                onChange={handleChange}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800"
+              />
+              <label htmlFor="remember_me" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">
+                Remember me
+              </label>
+            </div>
+
+            <div className="text-sm">
+              <Link
+                to="/forgot-password"
+                className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
+              >
+                Forgot your password?
+              </Link>
+            </div>
           </div>
 
           <CustomButton
@@ -251,17 +226,17 @@ const LoginForm = () => {
             loading={isLoading}
             disabled={isLoading}
           >
-            {isLoading ? 'Creating Account...' : 'Create Account'}
+            {isLoading ? 'Signing In...' : 'Sign In'}
           </CustomButton>
 
           <div className="text-center">
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              Already have an account?{' '}
+              Don't have an account?{' '}
               <Link
-                to="/login"
+                to="/register"
                 className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
               >
-                Sign in here
+                Create one here
               </Link>
             </p>
           </div>

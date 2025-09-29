@@ -1,6 +1,10 @@
+# backend/accounts/admin.py
+# Fixed version with correct format_html usage
+
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.utils.html import format_html
+from django.utils.safestring import mark_safe
 from .models import User, UserSession
 
 
@@ -56,6 +60,8 @@ class UserAdmin(BaseUserAdmin):
     def storage_percentage_display(self, obj):
         """Display storage usage as a progress bar"""
         percentage = obj.storage_percentage
+        
+        # Determine color based on percentage
         if percentage < 50:
             color = 'green'
         elif percentage < 80:
@@ -63,15 +69,24 @@ class UserAdmin(BaseUserAdmin):
         else:
             color = 'red'
         
-        return format_html(
+        # Calculate width (max 100px)
+        width = min(100, percentage)
+        
+        # Format percentage with 1 decimal place
+        percentage_text = f"{percentage:.1f}%"
+        
+        # Build HTML string - using {} only for values, not for format specifiers
+        html = (
             '<div style="width: 100px; background-color: #f0f0f0; border-radius: 3px;">'
-            '<div style="width: {}px; background-color: {}; height: 20px; border-radius: 3px; text-align: center; color: white; line-height: 20px; font-size: 12px;">'
-            '{:.1f}%'
-            '</div></div>',
-            min(100, percentage),
-            color,
-            percentage
-        )
+            '<div style="width: {width}px; background-color: {color}; height: 20px; '
+            'border-radius: 3px; text-align: center; color: white; line-height: 20px; '
+            'font-size: 12px;">'
+            '{percentage}'
+            '</div></div>'
+        ).format(width=width, color=color, percentage=percentage_text)
+        
+        return mark_safe(html)
+    
     storage_percentage_display.short_description = 'Storage Usage'
 
 
@@ -91,7 +106,10 @@ class UserSessionAdmin(admin.ModelAdmin):
     
     def user_agent_short(self, obj):
         """Display shortened user agent"""
-        return obj.user_agent[:50] + '...' if len(obj.user_agent) > 50 else obj.user_agent
+        if len(obj.user_agent) > 50:
+            return f"{obj.user_agent[:50]}..."
+        return obj.user_agent
+    
     user_agent_short.short_description = 'User Agent'
     
     def get_queryset(self, request):
