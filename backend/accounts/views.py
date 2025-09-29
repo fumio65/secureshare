@@ -120,10 +120,8 @@ class UserRegistrationView(APIView):
                     'max_storage': user.max_storage,
                     'storage_percentage': user.storage_percentage,
                 },
-                'tokens': {
-                    'access': str(refresh.access_token),
-                    'refresh': str(refresh)
-                }
+                'access': str(refresh.access_token),
+                'refresh': str(refresh)
             }, status=status.HTTP_201_CREATED)
         
         return Response({

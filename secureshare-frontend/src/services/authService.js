@@ -60,6 +60,33 @@ class AuthService {
 
       if (!response.ok) {
         // Handle validation errors
+        if (data.errors) {
+          // Handle nested error structure from backend
+          const errors = data.errors;
+          if (errors.email && Array.isArray(errors.email)) {
+            throw new Error(errors.email[0]);
+          }
+          if (errors.password && Array.isArray(errors.password)) {
+            throw new Error(errors.password[0]);
+          }
+          if (errors.username && Array.isArray(errors.username)) {
+            throw new Error(errors.username[0]);
+          }
+          if (errors.first_name && Array.isArray(errors.first_name)) {
+            throw new Error(errors.first_name[0]);
+          }
+          if (errors.last_name && Array.isArray(errors.last_name)) {
+            throw new Error(errors.last_name[0]);
+          }
+          if (errors.password_confirm && Array.isArray(errors.password_confirm)) {
+            throw new Error(errors.password_confirm[0]);
+          }
+          // Handle non_field_errors
+          if (errors.non_field_errors && Array.isArray(errors.non_field_errors)) {
+            throw new Error(errors.non_field_errors[0]);
+          }
+        }
+        // Handle direct field errors (legacy format)
         if (data.email && Array.isArray(data.email)) {
           throw new Error(data.email[0]);
         }

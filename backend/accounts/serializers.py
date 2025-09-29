@@ -25,6 +25,9 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             'email', 'username', 'first_name', 'last_name', 
             'password', 'password_confirm'
         )
+        extra_kwargs = {
+            'username': {'required': False, 'allow_blank': True}
+        }
         
     def validate_email(self, value):
         """Validate email uniqueness"""
@@ -58,6 +61,20 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         """Create new user"""
         validated_data.pop('password_confirm')
         password = validated_data.pop('password')
+        
+        # Generate username from email if not provided
+        if 'username' not in validated_data or not validated_data['username']:
+            email = validated_data['email']
+            base_username = email.split('@')[0].lower()
+            username = base_username
+            counter = 1
+            
+            # Ensure username is unique
+            while User.objects.filter(username=username).exists():
+                username = f"{base_username}{counter}"
+                counter += 1
+            
+            validated_data['username'] = username
         
         user = User(**validated_data)
         user.set_password(password)
