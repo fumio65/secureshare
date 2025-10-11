@@ -1,3 +1,6 @@
+// src/context/AuthContext.jsx
+// Fixed to properly handle authentication persistence
+
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import authService from '../services/authService';
 
@@ -22,6 +25,7 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const updateAuthState = useCallback((userData, authenticated) => {
+    console.log('🔄 Updating auth state:', { authenticated, user: userData?.email });
     setUser(userData);
     setIsAuthenticated(authenticated);
     if (authenticated) {
@@ -30,32 +34,49 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const checkAuthStatus = useCallback(async () => {
+    console.log('🔍 Checking auth status...');
     setIsLoading(true);
     
     try {
-      if (authService.isAuthenticated()) {
-        const profile = await authService.getProfile();
-        updateAuthState(profile, true);
-      } else {
+      // First, check if we have tokens in localStorage
+      const hasTokens = authService.isAuthenticated();
+      console.log('🔑 Has valid tokens:', hasTokens);
+      
+      if (!hasTokens) {
+        console.log('❌ No valid tokens found, user not authenticated');
         updateAuthState(null, false);
         authService.clearTokens();
+        setIsLoading(false);
+        return;
       }
+
+      // Try to get the user profile
+      console.log('📡 Fetching user profile...');
+      const profile = await authService.getProfile();
+      console.log('✅ Profile fetched successfully:', profile.email);
+      updateAuthState(profile, true);
+      
     } catch (error) {
-      console.error('Auth check failed:', error);
+      console.error('❌ Auth check failed:', error.message);
       
       // If the error is due to expired tokens, try to refresh
       if (error.message.includes('401') || error.message.includes('expired')) {
+        console.log('🔄 Attempting token refresh...');
         try {
           await authService.refreshTokenIfNeeded();
+          console.log('✅ Token refreshed, retrying profile fetch...');
           const profile = await authService.getProfile();
+          console.log('✅ Profile fetched after refresh:', profile.email);
           updateAuthState(profile, true);
         } catch (refreshError) {
-          console.error('Token refresh failed:', refreshError);
+          console.error('❌ Token refresh failed:', refreshError.message);
           updateAuthState(null, false);
           authService.clearTokens();
           setAuthError('Your session has expired. Please log in again.');
         }
       } else {
+        // For other errors, clear auth state
+        console.error('❌ Clearing auth state due to error');
         updateAuthState(null, false);
         authService.clearTokens();
       }
@@ -70,15 +91,18 @@ export const AuthProvider = ({ children }) => {
       const setupTokenRefresh = () => {
         const expirationTime = authService.getTokenExpirationTime();
         if (expirationTime) {
-          const refreshTime = expirationTime - Date.now() - 5 * 60 * 1000; // Refresh 5 minutes before expiry
+          const refreshTime = expirationTime - Date.now() - 5 * 60 * 1000;
           
           if (refreshTime > 0) {
+            console.log(`⏰ Token will refresh in ${Math.round(refreshTime / 1000 / 60)} minutes`);
             const timeoutId = setTimeout(async () => {
               try {
+                console.log('🔄 Auto-refreshing token...');
                 await authService.refreshTokenIfNeeded();
-                setupTokenRefresh(); // Set up next refresh
+                console.log('✅ Token auto-refresh successful');
+                setupTokenRefresh();
               } catch (error) {
-                console.error('Automatic token refresh failed:', error);
+                console.error('❌ Automatic token refresh failed:', error);
                 await logout();
               }
             }, refreshTime);
@@ -93,6 +117,7 @@ export const AuthProvider = ({ children }) => {
     }
   }, [isAuthenticated]);
 
+  // Check auth status on mount
   useEffect(() => {
     checkAuthStatus();
   }, [checkAuthStatus]);
@@ -102,10 +127,13 @@ export const AuthProvider = ({ children }) => {
     clearAuthError();
     
     try {
+      console.log('🔐 Logging in...');
       const data = await authService.login(credentials);
+      console.log('✅ Login successful:', data.user?.email);
       updateAuthState(data.user, true);
       return data;
     } catch (error) {
+      console.error('❌ Login failed:', error.message);
       setAuthError(error.message);
       throw error;
     } finally {
@@ -118,15 +146,17 @@ export const AuthProvider = ({ children }) => {
     clearAuthError();
     
     try {
+      console.log('📝 Registering user...');
       const data = await authService.register(userData);
       
-      // If registration includes login (tokens returned)
       if (data.access && data.refresh && data.user) {
+        console.log('✅ Registration successful with auto-login:', data.user.email);
         updateAuthState(data.user, true);
       }
       
       return data;
     } catch (error) {
+      console.error('❌ Registration failed:', error.message);
       setAuthError(error.message);
       throw error;
     } finally {
@@ -138,9 +168,11 @@ export const AuthProvider = ({ children }) => {
     setIsLoading(true);
     
     try {
+      console.log('🚪 Logging out...');
       await authService.logout();
+      console.log('✅ Logout successful');
     } catch (error) {
-      console.error('Logout error:', error);
+      console.error('❌ Logout error:', error);
     } finally {
       updateAuthState(null, false);
       setIsLoading(false);
@@ -159,8 +191,12 @@ export const AuthProvider = ({ children }) => {
 
   const changePassword = async (passwordData) => {
     try {
-      return await authService.changePassword(passwordData);
+      console.log('🔐 AuthContext: Starting password change...');
+      const result = await authService.changePassword(passwordData);
+      console.log('✅ AuthContext: Password change successful!', result);
+      return result;
     } catch (error) {
+      console.error('❌ AuthContext: Password change failed:', error);
       throw error;
     }
   };

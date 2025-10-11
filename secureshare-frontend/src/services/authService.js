@@ -1,3 +1,6 @@
+// src/services/authService.js
+// Fixed to match backend field names: current_password, new_password, new_password_confirm
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
 
 class AuthService {
@@ -21,11 +24,9 @@ class AuthService {
       },
     });
 
-    // If token is expired, try to refresh it
     if (response.status === 401) {
       try {
         await this.refreshTokenIfNeeded();
-        // Retry the original request with new token
         const newToken = this.getAccessToken();
         const retryResponse = await fetch(url, {
           ...options,
@@ -37,7 +38,6 @@ class AuthService {
         });
         return retryResponse;
       } catch (refreshError) {
-        // If refresh fails, logout user
         this.clearTokens();
         throw new Error('Session expired. Please log in again.');
       }
@@ -59,9 +59,7 @@ class AuthService {
       const data = await response.json();
 
       if (!response.ok) {
-        // Handle validation errors
         if (data.errors) {
-          // Handle nested error structure from backend
           const errors = data.errors;
           if (errors.email && Array.isArray(errors.email)) {
             throw new Error(errors.email[0]);
@@ -81,12 +79,10 @@ class AuthService {
           if (errors.password_confirm && Array.isArray(errors.password_confirm)) {
             throw new Error(errors.password_confirm[0]);
           }
-          // Handle non_field_errors
           if (errors.non_field_errors && Array.isArray(errors.non_field_errors)) {
             throw new Error(errors.non_field_errors[0]);
           }
         }
-        // Handle direct field errors (legacy format)
         if (data.email && Array.isArray(data.email)) {
           throw new Error(data.email[0]);
         }
@@ -96,7 +92,6 @@ class AuthService {
         throw new Error(data.detail || data.message || 'Registration failed');
       }
 
-      // Store tokens if returned
       if (data.access && data.refresh) {
         localStorage.setItem('access_token', data.access);
         localStorage.setItem('refresh_token', data.refresh);
@@ -130,7 +125,6 @@ class AuthService {
         throw new Error(data.detail || data.message || 'Login failed');
       }
 
-      // Store tokens
       localStorage.setItem('access_token', data.access);
       localStorage.setItem('refresh_token', data.refresh);
       
@@ -158,7 +152,6 @@ class AuthService {
         });
       } catch (error) {
         console.warn('Logout request failed:', error.message);
-        // Continue with local logout even if server request fails
       }
     }
 
@@ -166,7 +159,6 @@ class AuthService {
   }
 
   async refreshTokenIfNeeded() {
-    // Prevent multiple simultaneous refresh requests
     if (this.refreshPromise) {
       return this.refreshPromise;
     }
@@ -204,7 +196,6 @@ class AuthService {
       const data = await response.json();
       localStorage.setItem('access_token', data.access);
       
-      // Update refresh token if provided
       if (data.refresh) {
         localStorage.setItem('refresh_token', data.refresh);
       }
@@ -250,24 +241,84 @@ class AuthService {
 
   async changePassword(passwordData) {
     try {
+      console.log('🔐 AuthService: Starting password change request...');
+      console.log('📍 API Base URL:', API_BASE_URL);
+      console.log('📍 Full URL:', `${API_BASE_URL}/auth/change-password/`);
+      
+      // CRITICAL FIX: Backend expects different field names!
+      // Frontend uses: old_password, new_password
+      // Backend expects: current_password, new_password, new_password_confirm
+      const backendPasswordData = {
+        current_password: passwordData.old_password,
+        new_password: passwordData.new_password,
+        new_password_confirm: passwordData.new_password  // Backend requires confirmation
+      };
+      
+      console.log('📝 Frontend data (old_password):', { 
+        old_password: passwordData.old_password ? '***' : 'missing',
+        new_password: passwordData.new_password ? '***' : 'missing'
+      });
+      
+      console.log('📝 Backend data (current_password):', { 
+        current_password: backendPasswordData.current_password ? '***' : 'missing',
+        new_password: backendPasswordData.new_password ? '***' : 'missing',
+        new_password_confirm: backendPasswordData.new_password_confirm ? '***' : 'missing'
+      });
+      
+      const token = this.getAccessToken();
+      console.log('🔑 Access token:', token ? `${token.substring(0, 20)}...` : 'MISSING!');
+      
       const response = await this.makeAuthenticatedRequest(`${API_BASE_URL}/auth/change-password/`, {
         method: 'POST',
-        body: JSON.stringify(passwordData),
+        body: JSON.stringify(backendPasswordData),
       });
+
+      console.log('📥 Response status:', response.status);
+      console.log('📥 Response ok:', response.ok);
 
       if (!response.ok) {
         const data = await response.json();
-        if (data.old_password) {
-          throw new Error('Current password is incorrect');
+        console.error('❌ Error response data:', data);
+        
+        // Handle specific backend errors (using backend field names)
+        if (data.errors) {
+          if (data.errors.current_password) {
+            const errorMsg = Array.isArray(data.errors.current_password) 
+              ? data.errors.current_password[0] 
+              : data.errors.current_password;
+            throw new Error(errorMsg === 'Current password is incorrect.' ? 'Current password is incorrect' : errorMsg);
+          }
+          if (data.errors.new_password) {
+            const errorMsg = Array.isArray(data.errors.new_password) 
+              ? data.errors.new_password[0] 
+              : data.errors.new_password;
+            throw new Error(errorMsg);
+          }
+          if (data.errors.new_password_confirm) {
+            const errorMsg = Array.isArray(data.errors.new_password_confirm) 
+              ? data.errors.new_password_confirm[0] 
+              : data.errors.new_password_confirm;
+            throw new Error(errorMsg);
+          }
         }
-        if (data.new_password) {
-          throw new Error(data.new_password[0] || 'New password is invalid');
+        
+        if (data.detail) {
+          throw new Error(data.detail);
         }
-        throw new Error(data.detail || 'Failed to change password');
+        if (data.message) {
+          throw new Error(data.message);
+        }
+        
+        throw new Error('Failed to change password. Please try again.');
       }
 
-      return await response.json();
+      const result = await response.json();
+      console.log('✅ Password change successful:', result);
+      return result;
     } catch (error) {
+      console.error('❌ AuthService changePassword error:', error);
+      console.error('❌ Error type:', error.constructor.name);
+      console.error('❌ Error message:', error.message);
       throw error;
     }
   }
@@ -290,11 +341,9 @@ class AuthService {
     if (!token) return false;
 
     try {
-      // Basic token validation (check if it's not expired)
       const payload = JSON.parse(atob(token.split('.')[1]));
       const currentTime = Math.floor(Date.now() / 1000);
       
-      // If token expires in less than 5 minutes, consider it invalid
       return payload.exp > (currentTime + 300);
     } catch (error) {
       console.warn('Invalid token format:', error);
@@ -308,7 +357,7 @@ class AuthService {
 
     try {
       const payload = JSON.parse(atob(token.split('.')[1]));
-      return payload.exp * 1000; // Convert to milliseconds
+      return payload.exp * 1000;
     } catch (error) {
       return null;
     }
