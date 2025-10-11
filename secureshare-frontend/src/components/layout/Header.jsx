@@ -1,5 +1,8 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+// src/components/layout/Header.jsx
+// Enhanced with debugging to track auth state
+
+import React, { useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import ThemeToggle from '../theme/ThemeToggle';
 import CustomButton from '../forms/CustomButton';
@@ -7,9 +10,22 @@ import { Shield, LogOut, User } from 'lucide-react';
 
 const Header = () => {
   const { isAuthenticated, user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  // Debug: Log when auth state changes
+  useEffect(() => {
+    console.log('🎯 Header: Auth state changed', { 
+      isAuthenticated, 
+      user: user?.email,
+      timestamp: new Date().toISOString()
+    });
+  }, [isAuthenticated, user]);
 
   const handleLogout = async () => {
+    console.log('🚪 Header: Logout button clicked');
     await logout();
+    console.log('🚪 Header: Logout complete, navigating to home');
+    navigate('/');
   };
 
   return (
@@ -32,7 +48,7 @@ const Header = () => {
               <div className="flex items-center space-x-4">
                 <div className="flex items-center space-x-2 text-sm text-gray-700 dark:text-gray-300">
                   <User className="h-4 w-4" />
-                  <span>Welcome, {user?.first_name}</span>
+                  <span>Welcome, {user?.first_name || 'User'}</span>
                 </div>
                 
                 <CustomButton

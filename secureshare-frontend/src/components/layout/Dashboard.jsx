@@ -1,13 +1,18 @@
+// src/components/layout/Dashboard.jsx
+// Complete version with working Change Password button
+
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import Header from './Header';
 import AuthStatus from '../auth/AuthStatus';
 import CustomButton from '../forms/CustomButton';
+import ChangePasswordModal from '../auth/ChangePasswordModal';
 import { Upload, History, Settings, User, Shield, Clock } from 'lucide-react';
 
 const Dashboard = () => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
+  const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
 
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
@@ -25,6 +30,14 @@ const Dashboard = () => {
     { id: 'history', label: 'Transfer History', icon: History },
     { id: 'settings', label: 'Account Settings', icon: Settings },
   ];
+
+  const handleChangePassword = () => {
+    setIsChangePasswordModalOpen(true);
+  };
+
+  const handleClosePasswordModal = () => {
+    setIsChangePasswordModalOpen(false);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -263,7 +276,11 @@ const Dashboard = () => {
                   <CustomButton variant="outline" size="sm">
                     Edit Profile
                   </CustomButton>
-                  <CustomButton variant="outline" size="sm">
+                  <CustomButton 
+                    variant="outline" 
+                    size="sm"
+                    onClick={handleChangePassword}
+                  >
                     Change Password
                   </CustomButton>
                 </div>
@@ -309,8 +326,14 @@ const Dashboard = () => {
           </div>
         )}
       </main>
+
+      {/* Change Password Modal */}
+      <ChangePasswordModal 
+        isOpen={isChangePasswordModalOpen}
+        onClose={handleClosePasswordModal}
+      />
     </div>
   );
 };
 
-export default Dashboard;
+export default Dashboard; 
