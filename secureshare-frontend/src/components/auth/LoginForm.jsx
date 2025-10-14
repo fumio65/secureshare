@@ -195,7 +195,7 @@ const LoginForm = () => {
 
           <div className="flex items-center justify-between">
             <div className="flex items-center">
-              <input
+              {/* <input
                 id="remember_me"
                 name="remember_me"
                 type="checkbox"
@@ -205,7 +205,7 @@ const LoginForm = () => {
               />
               <label htmlFor="remember_me" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">
                 Remember me
-              </label>
+              </label> */}
             </div>
 
             <div className="text-sm">

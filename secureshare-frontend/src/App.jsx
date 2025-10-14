@@ -7,6 +7,7 @@ import HomePage from './components/layout/HomePage';
 import LoginForm from './components/auth/LoginForm';
 import RegistrationForm from './components/auth/RegistrationForm';
 import Dashboard from './components/layout/Dashboard';
+import TermsOfService from './components/legal/TermsOfService';
 import './index.css';
 
 function App() {
@@ -20,6 +21,8 @@ function App() {
               <Route path="/" element={<HomePage />} />
               <Route path="/login" element={<LoginForm />} />
               <Route path="/register" element={<RegistrationForm />} />
+
+              <Route path="/terms" element={<TermsOfService />} />
               
               {/* Protected Routes */}
               <Route 
