@@ -1,3 +1,4 @@
+// src/components/auth/RegistrationForm.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -5,6 +6,7 @@ import CustomInput from '../forms/CustomInput';
 import PasswordInput from '../forms/PasswordInput';
 import CustomButton from '../forms/CustomButton';
 import AuthStatus from './AuthStatus';
+import TermsAndPrivacyModal from '../legal/TermsAndPrivacyModal';
 import { UserPlus, ArrowLeft, Shield, CheckCircle } from 'lucide-react';
 
 const RegistrationForm = () => {
@@ -23,6 +25,7 @@ const RegistrationForm = () => {
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
   const [isLoading, setIsLoading] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -38,6 +41,16 @@ const RegistrationForm = () => {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
+    
+    // Prevent manual checkbox toggling - must go through modal
+    if (name === 'agree_terms') {
+      if (!formData.agree_terms) {
+        // If trying to check, open modal instead
+        setShowTermsModal(true);
+      }
+      return;
+    }
+
     setFormData(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value
@@ -176,10 +189,8 @@ const RegistrationForm = () => {
       console.log('Attempting registration with:', { ...userData, password: '[HIDDEN]', password_confirm: '[HIDDEN]' });
       await register(userData);
       console.log('Registration successful');
-      // Navigation will happen via useEffect when isAuthenticated becomes true
     } catch (error) {
       console.error('Registration error:', error);
-      // Error is handled by AuthContext and displayed via AuthStatus
     } finally {
       setIsLoading(false);
     }
@@ -287,37 +298,65 @@ const RegistrationForm = () => {
               autoComplete="new-password"
             />
 
-            {/* Terms and Conditions */}
+            {/* Terms and Conditions - Must read through modal */}
             <div className="space-y-3">
-              <div className="flex items-start space-x-3">
+              <div 
+                className="flex items-start space-x-3 cursor-pointer group"
+                onClick={() => setShowTermsModal(true)}
+              >
                 <input
                   id="agree_terms"
                   name="agree_terms"
                   type="checkbox"
                   checked={formData.agree_terms}
                   onChange={handleChange}
+                  readOnly
                   className={`
-                    mt-0.5 h-4 w-4 rounded border focus:ring-2 focus:ring-blue-500 transition-colors
+                    mt-0.5 h-4 w-4 rounded border focus:ring-2 focus:ring-blue-500 transition-colors cursor-pointer
                     ${errors.agree_terms && touched.agree_terms 
                       ? 'border-red-300 text-red-600' 
+                      : formData.agree_terms
+                      ? 'border-green-500 text-green-600 dark:border-green-500'
                       : 'border-gray-300 text-blue-600 dark:border-gray-600'
                     }
                   `}
                 />
-                <label htmlFor="agree_terms" className="text-sm text-gray-700 dark:text-gray-300">
-                  I agree to the{' '}
-                  <Link to="/terms" className="text-blue-600 hover:text-blue-500 dark:text-blue-400">
-                    Terms of Service
-                  </Link>{' '}
-                  and{' '}
-                  <Link to="/privacy" className="text-blue-600 hover:text-blue-500 dark:text-blue-400">
-                    Privacy Policy
-                  </Link>
+                <label 
+                  htmlFor="agree_terms" 
+                  className="text-sm text-gray-700 dark:text-gray-300 cursor-pointer group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors"
+                >
+                  {formData.agree_terms ? (
+                    <>
+                      <span className="text-green-600 dark:text-green-400 font-medium">✓ I have read and agree to the </span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowTermsModal(true);
+                        }}
+                        className="text-blue-600 hover:text-blue-500 dark:text-blue-400 font-medium underline"
+                      >
+                        Terms of Service and Privacy Policy
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      Click to read and accept the{' '}
+                      <span className="text-blue-600 dark:text-blue-400 font-medium underline">
+                        Terms of Service and Privacy Policy
+                      </span>
+                    </>
+                  )}
                 </label>
               </div>
               {errors.agree_terms && touched.agree_terms && (
                 <p className="text-sm text-red-600 dark:text-red-400">
                   {errors.agree_terms}
+                </p>
+              )}
+              {!formData.agree_terms && (
+                <p className="text-xs text-amber-600 dark:text-amber-400 ml-7">
+                  You must read and scroll through the entire document before you can accept
                 </p>
               )}
             </div>
@@ -372,6 +411,23 @@ const RegistrationForm = () => {
             </p>
           </div>
         </form>
+
+        {/* Terms and Privacy Modal */}
+        <TermsAndPrivacyModal
+          isOpen={showTermsModal}
+          onClose={() => setShowTermsModal(false)}
+          alreadyAccepted={formData.agree_terms}
+          onAccept={() => {
+            setFormData(prev => ({
+              ...prev,
+              agree_terms: true
+            }));
+            setErrors(prev => ({
+              ...prev,
+              agree_terms: ''
+            }));
+          }}
+        />
       </div>
     </div>
   );
