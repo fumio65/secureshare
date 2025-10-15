@@ -10,6 +10,9 @@ import Dashboard from './components/layout/Dashboard';
 import TermsOfService from './components/legal/TermsOfService';
 import './index.css';
 
+
+import UploadTest from './pages/UploadTest';
+
 function App() {
   return (
     <ThemeProvider>
