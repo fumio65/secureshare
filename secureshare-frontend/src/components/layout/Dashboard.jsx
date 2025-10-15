@@ -1,18 +1,18 @@
-// src/components/layout/Dashboard.jsx
-// Complete version with working Change Password button
-
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import Header from './Header';
 import AuthStatus from '../auth/AuthStatus';
 import CustomButton from '../forms/CustomButton';
 import ChangePasswordModal from '../auth/ChangePasswordModal';
+import DragDropArea from '../upload/DragDropArea';
 import { Upload, History, Settings, User, Shield, Clock } from 'lucide-react';
 
 const Dashboard = () => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [selectedFiles, setSelectedFiles] = useState([]);
 
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
@@ -37,6 +37,33 @@ const Dashboard = () => {
 
   const handleClosePasswordModal = () => {
     setIsChangePasswordModalOpen(false);
+  };
+
+  const handleFileSelect = (files) => {
+    setSelectedFiles(files);
+    console.log('📁 Files selected in Dashboard:', files);
+    
+    if (files && files.length > 0) {
+      const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+      console.log('📊 Total files:', files.length);
+      console.log('📊 Total size:', (totalSize / (1024 * 1024)).toFixed(2) + ' MB');
+      
+      files.forEach((file, index) => {
+        console.log(`File ${index + 1}:`, {
+          name: file.name,
+          size: (file.size / (1024 * 1024)).toFixed(2) + ' MB',
+          type: file.type
+        });
+      });
+    }
+  };
+
+  const handleUpload = () => {
+    if (selectedFiles && selectedFiles.length > 0) {
+      console.log('🚀 Starting upload process for', selectedFiles.length, 'file(s)');
+      const fileNames = selectedFiles.map(f => f.name).join('\n- ');
+      alert(`Ready to upload ${selectedFiles.length} file(s):\n\n- ${fileNames}\n\nUpload logic will be implemented in Task 4.2`);
+    }
   };
 
   return (
@@ -141,30 +168,39 @@ const Dashboard = () => {
 
             {/* Main Content Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Upload Area Placeholder */}
+              {/* Upload Area with Real DragDropArea Component */}
               <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
                 <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
                   Quick Upload
                 </h2>
-                <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-8 text-center hover:border-blue-400 dark:hover:border-blue-500 transition-colors cursor-pointer">
-                  <Upload className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500 mb-4" />
-                  <p className="text-gray-600 dark:text-gray-400 font-medium">
-                    Drag and drop files here or click to browse
-                  </p>
-                  <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">
-                    Files up to 5GB • All files encrypted automatically
-                  </p>
-                  <div className="mt-4 flex justify-center space-x-4 text-xs text-gray-500 dark:text-gray-500">
-                    <span className="bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 px-2 py-1 rounded">
-                      ≤100MB Free
-                    </span>
-                    <span className="bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-2 py-1 rounded">
-                      ≤1GB $3
-                    </span>
-                    <span className="bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 px-2 py-1 rounded">
-                      ≤5GB $8
-                    </span>
+                
+                <DragDropArea 
+                  onFileSelect={handleFileSelect}
+                  maxSize={5 * 1024 * 1024 * 1024} // 5GB
+                />
+
+                {selectedFile && (
+                  <div className="mt-4">
+                    <CustomButton
+                      variant="primary"
+                      fullWidth
+                      onClick={handleUpload}
+                    >
+                      Continue with Upload
+                    </CustomButton>
                   </div>
+                )}
+
+                <div className="mt-4 flex justify-center space-x-4 text-xs text-gray-500 dark:text-gray-500">
+                  <span className="bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 px-2 py-1 rounded">
+                    ≤100MB Free
+                  </span>
+                  <span className="bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-2 py-1 rounded">
+                    ≤1GB $3
+                  </span>
+                  <span className="bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 px-2 py-1 rounded">
+                    ≤5GB $8
+                  </span>
                 </div>
               </div>
 
@@ -336,4 +372,4 @@ const Dashboard = () => {
   );
 };
 
-export default Dashboard; 
+export default Dashboard;
