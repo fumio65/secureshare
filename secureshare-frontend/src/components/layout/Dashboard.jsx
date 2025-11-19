@@ -5,7 +5,7 @@ import Header from './Header';
 import AuthStatus from '../auth/AuthStatus';
 import CustomButton from '../forms/CustomButton';
 import ChangePasswordModal from '../auth/ChangePasswordModal';
-import { DragDropArea, MultiFilePreview } from '../upload';
+import { DragDropArea, MultiFilePreview, PricingDisplay, UploadButton } from '../upload';
 import { calculateTotalPricing } from '../../utils/fileUtils';
 import { Upload, History, Settings, User, Shield, Clock } from 'lucide-react';
 
@@ -92,20 +92,33 @@ const Dashboard = () => {
     setSelectedFiles([]);
   };
 
-  const handleUpload = () => {
-    if (selectedFiles.length > 0) {
-      const pricing = calculateTotalPricing(selectedFiles);
-      console.log('🚀 Starting upload process for', selectedFiles.length, 'file(s)');
-      console.log('💰 Total price:', pricing.totalPrice);
-      console.log('📦 Total size:', pricing.formattedSize);
-      
-      const fileList = selectedFiles.map(f => `- ${f.name} (${(f.size / (1024 * 1024)).toFixed(2)} MB)`).join('\n');
-      
+  const handleContinue = (pricing) => {
+    console.log('📊 Pricing details:', pricing);
+    console.log('💰 Total price:', pricing.totalPrice);
+    console.log('💳 Requires payment:', pricing.requiresPayment);
+    console.log('📦 Files:', pricing.fileCount);
+    
+    if (pricing.requiresPayment) {
       alert(
-        `Ready to upload ${selectedFiles.length} file(s):\n\n${fileList}\n\n` +
+        `Payment Required: $${pricing.totalPrice}\n\n` +
+        `Files: ${pricing.fileCount}\n` +
         `Total size: ${pricing.formattedSize}\n` +
-        `Price: ${pricing.tier.label}\n\n` +
-        `Upload logic will be implemented in Task 4.2-4.3`
+        `Tier: ${pricing.tier.tier}\n\n` +
+        `Stripe payment integration will be added in Task 5.2\n\n` +
+        `For now, we'll simulate the upload process...`
+      );
+      
+      // Simulate upload after "payment"
+      setTimeout(() => {
+        alert('Upload simulation complete!');
+      }, 1000);
+    } else {
+      console.log('🚀 Starting free upload...');
+      alert(
+        `Ready to upload ${pricing.fileCount} file(s):\n\n` +
+        `Total size: ${pricing.formattedSize}\n` +
+        `Price: Free\n\n` +
+        `Upload logic will be implemented in Task 4.3`
       );
     }
   };
@@ -244,6 +257,9 @@ const Dashboard = () => {
                       />
                     </div>
                     
+                    {/* Pricing Display - NEW */}
+                    <PricingDisplay files={selectedFiles} />
+                    
                     {/* Add More Files Section - Only show if less than 5 files */}
                     {selectedFiles.length < 5 && (
                       <div className="relative">
@@ -256,15 +272,14 @@ const Dashboard = () => {
                       </div>
                     )}
                     
+                    {/* Smart Upload Button - REPLACED */}
                     <div className="flex space-x-3">
-                      <CustomButton
-                        variant="primary"
-                        onClick={handleUpload}
-                        className="flex-1"
-                      >
-                        <Upload className="h-5 w-5 mr-2" />
-                        Upload {selectedFiles.length} {selectedFiles.length === 1 ? 'File' : 'Files'}
-                      </CustomButton>
+                      <div className="flex-1">
+                        <UploadButton 
+                          files={selectedFiles}
+                          onContinue={handleContinue}
+                        />
+                      </div>
                       <CustomButton
                         variant="outline"
                         onClick={handleRemoveAllFiles}
@@ -410,7 +425,7 @@ const Dashboard = () => {
 
             {/* Security Settings */}
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+              <h2 className="text-xl font-semibent text-gray-900 dark:text-white mb-4">
                 Security & Privacy
               </h2>
               
