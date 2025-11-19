@@ -8,10 +8,8 @@ import LoginForm from './components/auth/LoginForm';
 import RegistrationForm from './components/auth/RegistrationForm';
 import Dashboard from './components/layout/Dashboard';
 import TermsOfService from './components/legal/TermsOfService';
+import UploadPage from './pages/UploadPage';
 import './index.css';
-
-
-import UploadTest from './pages/UploadTest';
 
 function App() {
   return (
@@ -24,7 +22,6 @@ function App() {
               <Route path="/" element={<HomePage />} />
               <Route path="/login" element={<LoginForm />} />
               <Route path="/register" element={<RegistrationForm />} />
-
               <Route path="/terms" element={<TermsOfService />} />
               
               {/* Protected Routes */}
@@ -33,6 +30,16 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <Dashboard />
+                  </ProtectedRoute>
+                } 
+              />
+
+              {/* Upload Page - Protected Route */}
+              <Route 
+                path="/upload" 
+                element={
+                  <ProtectedRoute>
+                    <UploadPage />
                   </ProtectedRoute>
                 } 
               />

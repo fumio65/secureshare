@@ -1,17 +1,19 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import Header from './Header';
 import AuthStatus from '../auth/AuthStatus';
 import CustomButton from '../forms/CustomButton';
 import ChangePasswordModal from '../auth/ChangePasswordModal';
-import DragDropArea from '../upload/DragDropArea';
+import { DragDropArea, MultiFilePreview } from '../upload';
+import { calculateTotalPricing } from '../../utils/fileUtils';
 import { Upload, History, Settings, User, Shield, Clock } from 'lucide-react';
 
 const Dashboard = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
   const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
-  const [selectedFile, setSelectedFile] = useState(null);
   const [selectedFiles, setSelectedFiles] = useState([]);
 
   const formatDate = (dateString) => {
@@ -39,30 +41,72 @@ const Dashboard = () => {
     setIsChangePasswordModalOpen(false);
   };
 
-  const handleFileSelect = (files) => {
-    setSelectedFiles(files);
-    console.log('📁 Files selected in Dashboard:', files);
+  const handleFileSelect = (newFiles) => {
+    console.log('📁 Dashboard received NEW files:', newFiles);
+    console.log('📁 Number of NEW files:', newFiles.length);
+    console.log('📁 EXISTING files count:', selectedFiles.length);
     
-    if (files && files.length > 0) {
-      const totalSize = files.reduce((sum, file) => sum + file.size, 0);
-      console.log('📊 Total files:', files.length);
-      console.log('📊 Total size:', (totalSize / (1024 * 1024)).toFixed(2) + ' MB');
-      
-      files.forEach((file, index) => {
-        console.log(`File ${index + 1}:`, {
-          name: file.name,
-          size: (file.size / (1024 * 1024)).toFixed(2) + ' MB',
-          type: file.type
-        });
-      });
+    // Ensure we're working with an array
+    const newFilesArray = Array.isArray(newFiles) ? newFiles : [newFiles];
+    
+    // Combine existing files with new files
+    const combinedFiles = [...selectedFiles, ...newFilesArray];
+    
+    // Check if we exceed max files
+    if (combinedFiles.length > 5) {
+      const remainingSlots = 5 - selectedFiles.length;
+      if (remainingSlots <= 0) {
+        alert(`Maximum 5 files allowed. You already have 5 files selected. Please remove some files first.`);
+        return;
+      }
+      alert(`Maximum 5 files allowed. You have ${selectedFiles.length} file(s) already. Only adding ${remainingSlots} more file(s).`);
+      const limitedNewFiles = newFilesArray.slice(0, remainingSlots);
+      const finalFiles = [...selectedFiles, ...limitedNewFiles];
+      console.log('📁 Setting state with LIMITED combined files:', finalFiles.length);
+      setSelectedFiles(finalFiles);
+    } else {
+      console.log('📁 Setting state with ALL combined files:', combinedFiles.length);
+      setSelectedFiles(combinedFiles);
     }
+    
+    // Log each file in the final array
+    const finalArray = combinedFiles.length <= 5 ? combinedFiles : [...selectedFiles, ...newFilesArray.slice(0, 5 - selectedFiles.length)];
+    finalArray.forEach((file, index) => {
+      console.log(`File ${index + 1}:`, {
+        name: file.name,
+        size: (file.size / 1024).toFixed(2) + ' KB',
+        type: file.type
+      });
+    });
+  };
+
+  const handleRemoveFile = (index) => {
+    console.log('🗑️ Removing file at index:', index);
+    const newFiles = selectedFiles.filter((_, i) => i !== index);
+    console.log('🗑️ Remaining files:', newFiles.length);
+    setSelectedFiles(newFiles);
+  };
+
+  const handleRemoveAllFiles = () => {
+    console.log('🗑️ Removing all files');
+    setSelectedFiles([]);
   };
 
   const handleUpload = () => {
-    if (selectedFiles && selectedFiles.length > 0) {
+    if (selectedFiles.length > 0) {
+      const pricing = calculateTotalPricing(selectedFiles);
       console.log('🚀 Starting upload process for', selectedFiles.length, 'file(s)');
-      const fileNames = selectedFiles.map(f => f.name).join('\n- ');
-      alert(`Ready to upload ${selectedFiles.length} file(s):\n\n- ${fileNames}\n\nUpload logic will be implemented in Task 4.2`);
+      console.log('💰 Total price:', pricing.totalPrice);
+      console.log('📦 Total size:', pricing.formattedSize);
+      
+      const fileList = selectedFiles.map(f => `- ${f.name} (${(f.size / (1024 * 1024)).toFixed(2)} MB)`).join('\n');
+      
+      alert(
+        `Ready to upload ${selectedFiles.length} file(s):\n\n${fileList}\n\n` +
+        `Total size: ${pricing.formattedSize}\n` +
+        `Price: ${pricing.tier.label}\n\n` +
+        `Upload logic will be implemented in Task 4.2-4.3`
+      );
     }
   };
 
@@ -168,26 +212,66 @@ const Dashboard = () => {
 
             {/* Main Content Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Upload Area with Real DragDropArea Component */}
+              {/* Quick Upload with Multiple Files Support */}
               <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
                 <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
                   Quick Upload
+                  {selectedFiles.length > 0 && (
+                    <span className="ml-2 text-sm font-normal text-gray-500 dark:text-gray-400">
+                      ({selectedFiles.length}/5 {selectedFiles.length === 1 ? 'file' : 'files'})
+                    </span>
+                  )}
                 </h2>
                 
-                <DragDropArea 
-                  onFileSelect={handleFileSelect}
-                  maxSize={5 * 1024 * 1024 * 1024} // 5GB
-                />
-
-                {selectedFile && (
-                  <div className="mt-4">
-                    <CustomButton
-                      variant="primary"
-                      fullWidth
-                      onClick={handleUpload}
+                {selectedFiles.length === 0 ? (
+                  <DragDropArea 
+                    onFileSelect={handleFileSelect}
+                    multiple={true}
+                    maxFiles={5}
+                    addMode={false}
+                  />
+                ) : (
+                  <div className="space-y-4">
+                    <div 
+                      className="relative"
+                      onDragOver={(e) => e.stopPropagation()}
+                      onDrop={(e) => e.stopPropagation()}
                     >
-                      Continue with Upload
-                    </CustomButton>
+                      <MultiFilePreview 
+                        files={selectedFiles}
+                        onRemove={handleRemoveFile}
+                        onRemoveAll={handleRemoveAllFiles}
+                      />
+                    </div>
+                    
+                    {/* Add More Files Section - Only show if less than 5 files */}
+                    {selectedFiles.length < 5 && (
+                      <div className="relative">
+                        <DragDropArea 
+                          onFileSelect={handleFileSelect}
+                          multiple={true}
+                          maxFiles={5}
+                          addMode={true}
+                        />
+                      </div>
+                    )}
+                    
+                    <div className="flex space-x-3">
+                      <CustomButton
+                        variant="primary"
+                        onClick={handleUpload}
+                        className="flex-1"
+                      >
+                        <Upload className="h-5 w-5 mr-2" />
+                        Upload {selectedFiles.length} {selectedFiles.length === 1 ? 'File' : 'Files'}
+                      </CustomButton>
+                      <CustomButton
+                        variant="outline"
+                        onClick={handleRemoveAllFiles}
+                      >
+                        Cancel
+                      </CustomButton>
+                    </div>
                   </div>
                 )}
 
@@ -249,7 +333,8 @@ const Dashboard = () => {
                 className="mt-4"
                 onClick={() => setActiveTab('overview')}
               >
-                Upload First File
+                <Upload className="h-5 w-5 mr-2" />
+                Upload Files
               </CustomButton>
             </div>
           </div>
