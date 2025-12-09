@@ -13,6 +13,26 @@ DEBUG = os.environ.get('DEBUG', 'True').lower() == 'true'
 
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
+# File Upload Settings
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+# File size limits
+DATA_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024 * 1024  # 5GB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024 * 1024  # 5GB
+
+# File upload handlers
+FILE_UPLOAD_HANDLERS = [
+    'django.core.files.uploadhandler.MemoryFileUploadHandler',
+    'django.core.files.uploadhandler.TemporaryFileUploadHandler',
+]
+
+# Create media directory if it doesn't exist
+MEDIA_ROOT_PATH = os.path.join(BASE_DIR, 'media')
+os.makedirs(MEDIA_ROOT_PATH, exist_ok=True)
+os.makedirs(os.path.join(MEDIA_ROOT_PATH, 'uploads'), exist_ok=True)
+
+
 # Application definition
 DJANGO_APPS = [
     'django.contrib.admin',

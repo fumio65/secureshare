@@ -1,4 +1,6 @@
 # backend/files/models.py
+# COMPLETE FILE WITH BATCH TRACKING ADDED
+
 import os
 import uuid
 from django.db import models
@@ -38,6 +40,13 @@ class FileUpload(models.Model):
     # Basic file information
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='uploads')
+    
+    # 🆕 NEW: Batch tracking for grouped uploads
+    batch_id = models.UUIDField(default=uuid.uuid4, db_index=True)
+    upload_session_id = models.CharField(max_length=64, blank=True, null=True, db_index=True)
+    is_batch_upload = models.BooleanField(default=False)
+    batch_position = models.IntegerField(default=0)  # Order within batch
+    
     original_filename = models.CharField(max_length=255)
     file_size = models.BigIntegerField()  # in bytes
     mime_type = models.CharField(max_length=100)
@@ -66,11 +75,13 @@ class FileUpload(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
-        ordering = ['-created_at']
+        ordering = ['-created_at', 'batch_position']  # 🆕 UPDATED: Added batch_position
         indexes = [
             models.Index(fields=['user', '-created_at']),
             models.Index(fields=['download_token']),
             models.Index(fields=['expires_at']),
+            models.Index(fields=['batch_id']),  # 🆕 NEW INDEX
+            models.Index(fields=['upload_session_id']),  # 🆕 NEW INDEX
         ]
     
     def __str__(self):
@@ -128,54 +139,4 @@ class FileUpload(models.Model):
             'premium': 300,  # $3.00 in cents
             'large': 800,    # $8.00 in cents
         }
-        return pricing_map.get(self.pricing_tier, 0)
-
-
-# backend/files/utils.py
-import os
-import secrets
-import string
-from cryptography.fernet import Fernet
-from django.conf import settings
-
-def generate_secure_password(length=8):
-    """Generate secure alphanumeric password."""
-    alphabet = string.ascii_lowercase + string.digits
-    password = ''.join(secrets.choice(alphabet) for _ in range(length))
-    return password
-
-def generate_encryption_key():
-    """Generate encryption key for file."""
-    return Fernet.generate_key()
-
-def encrypt_file_content(content, key):
-    """Encrypt file content using Fernet."""
-    fernet = Fernet(key)
-    return fernet.encrypt(content)
-
-def decrypt_file_content(encrypted_content, key):
-    """Decrypt file content using Fernet."""
-    fernet = Fernet(key)
-    return fernet.decrypt(encrypted_content)
-
-def get_file_mime_type(filename):
-    """Get MIME type from filename."""
-    import mimetypes
-    mime_type, _ = mimetypes.guess_type(filename)
-    return mime_type or 'application/octet-stream'
-
-def validate_file_size(file_size):
-    """Validate file size against limits."""
-    max_size = 5 * 1024 * 1024 * 1024  # 5GB
-    if file_size > max_size:
-        raise ValueError("File size exceeds 5GB limit")
-    return True
-
-def get_pricing_tier(file_size):
-    """Get pricing tier based on file size."""
-    if file_size <= 100 * 1024 * 1024:  # 100MB
-        return 'free', 0
-    elif file_size <= 1024 * 1024 * 1024:  # 1GB
-        return 'premium', 300  # $3.00
-    else:  # Up to 5GB
-        return 'large', 800    # $8.00
+        return pricing_map.get(self.pricing_tier, 0)    

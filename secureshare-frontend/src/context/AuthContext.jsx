@@ -1,5 +1,5 @@
 // src/context/AuthContext.jsx
-// Fixed to properly handle authentication persistence
+// Updated with getAccessToken function for file uploads
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import authService from '../services/authService';
@@ -201,6 +201,13 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // 🆕 NEW: Get access token for API calls
+  const getAccessToken = useCallback(() => {
+    const token = authService.getAccessToken();
+    console.log('🔑 Getting access token:', token ? '✅ Found' : '❌ Not found');
+    return token;
+  }, []);
+
   const value = {
     user,
     isAuthenticated,
@@ -211,6 +218,7 @@ export const AuthProvider = ({ children }) => {
     logout,
     updateProfile,
     changePassword,
+    getAccessToken, // 🆕 NEW: Added to context value
     checkAuthStatus,
     clearAuthError,
   };
