@@ -9,6 +9,7 @@ import RegistrationForm from './components/auth/RegistrationForm';
 import Dashboard from './components/layout/Dashboard';
 import TermsOfService from './components/legal/TermsOfService';
 import UploadPage from './pages/UploadPage';
+import DownloadPage from './pages/DownloadPage'; // 🆕 NEW IMPORT
 import './index.css';
 
 function App() {
@@ -23,6 +24,9 @@ function App() {
               <Route path="/login" element={<LoginForm />} />
               <Route path="/register" element={<RegistrationForm />} />
               <Route path="/terms" element={<TermsOfService />} />
+              
+              {/* 🆕 PUBLIC Download Route - No Authentication Required */}
+              <Route path="/download/:downloadToken" element={<DownloadPage />} />
               
               {/* Protected Routes */}
               <Route 

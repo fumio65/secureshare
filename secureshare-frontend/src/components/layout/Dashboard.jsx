@@ -1,22 +1,137 @@
-import React, { useState } from 'react';
+// src/pages/Dashboard.jsx
+// UPDATED: For ZIP archive approach (ONE link, ONE password)
+
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import Header from './Header';
+import Header from '../layout/Header';
 import AuthStatus from '../auth/AuthStatus';
 import CustomButton from '../forms/CustomButton';
 import ChangePasswordModal from '../auth/ChangePasswordModal';
 import { DragDropArea, MultiFilePreview, PricingDisplay, UploadButton } from '../upload';
+import UploadProgressModal from '../upload/UploadProgressModal';
 import { calculateTotalPricing } from '../../utils/fileUtils';
-import { Upload, History, Settings, User, Shield, Clock } from 'lucide-react';
+import { Upload, History, Settings, User, Shield, Clock, Copy, CheckCircle, ExternalLink, Trash2, Link2, Lock, AlertCircle } from 'lucide-react';
+import useUploadManager from '../../hooks/useUploadManager';
+import { getTransferHistory, formatFileSize, formatDate, getTierColors, getStatusColors } from '../../services/filesAPI';
 
 const Dashboard = () => {
-  const { user } = useAuth();
+  const { user, getAccessToken } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
   const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState([]);
+  
+  // Upload management - UPDATED for ZIP approach
+  const { 
+    isUploading, 
+    uploadInfo,      // Changed from uploads array
+    error,
+    progress,        // NEW
+    currentStatus,   // NEW
+    startUpload, 
+    resetUpload 
+  } = useUploadManager();
+  
+  const [showProgressModal, setShowProgressModal] = useState(false);
+  
+  // Transfer history
+  const [transferHistory, setTransferHistory] = useState(null);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [copiedItem, setCopiedItem] = useState(null);
 
-  const formatDate = (dateString) => {
+  // Fetch transfer history
+  useEffect(() => {
+    if (activeTab === 'history' || activeTab === 'overview') {
+      fetchTransferHistory();
+    }
+  }, [activeTab]);
+
+  // Show progress modal when uploading or upload info is available
+  useEffect(() => {
+    if (isUploading || uploadInfo) {
+      setShowProgressModal(true);
+    }
+  }, [isUploading, uploadInfo]);
+
+  const fetchTransferHistory = async () => {
+    setLoadingHistory(true);
+    try {
+      const token = getAccessToken();
+      const data = await getTransferHistory(token);
+      setTransferHistory(data);
+    } catch (err) {
+      console.error('Failed to fetch transfer history:', err);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  const copyToClipboard = async (text, id) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedItem(id);
+      setTimeout(() => setCopiedItem(null), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
+
+  const handleFileSelect = (newFiles) => {
+    const newFilesArray = Array.isArray(newFiles) ? newFiles : [newFiles];
+    const combinedFiles = [...selectedFiles, ...newFilesArray];
+    
+    if (combinedFiles.length > 5) {
+      const remainingSlots = 5 - selectedFiles.length;
+      if (remainingSlots <= 0) {
+        alert(`Maximum 5 files allowed. Please remove some files first.`);
+        return;
+      }
+      alert(`Maximum 5 files allowed. Only adding ${remainingSlots} more file(s).`);
+      setSelectedFiles([...selectedFiles, ...newFilesArray.slice(0, remainingSlots)]);
+    } else {
+      setSelectedFiles(combinedFiles);
+    }
+  };
+
+  const handleRemoveFile = (index) => {
+    setSelectedFiles(selectedFiles.filter((_, i) => i !== index));
+  };
+
+  const handleRemoveAllFiles = () => {
+    setSelectedFiles([]);
+  };
+
+  const handleContinue = async (pricing) => {
+    if (pricing.requiresPayment) {
+      alert(
+        `Payment Required: $${pricing.totalPrice}\n\n` +
+        `Stripe payment will be integrated in Phase 5.\n` +
+        `For now, proceeding with upload...`
+      );
+    }
+    
+    try {
+      const token = getAccessToken();
+      const result = await startUpload(selectedFiles, token);
+      
+      if (result.success) {
+        setSelectedFiles([]);
+        // Will refresh history when modal closes
+      }
+    } catch (err) {
+      console.error('Upload failed:', err);
+      alert('Upload failed: ' + err.message);
+    }
+  };
+
+  const handleCloseProgressModal = () => {
+    setShowProgressModal(false);
+    resetUpload();
+    fetchTransferHistory();
+  };
+
+  const formatDateFull = (dateString) => {
     if (!dateString) return 'N/A';
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -33,101 +148,13 @@ const Dashboard = () => {
     { id: 'settings', label: 'Account Settings', icon: Settings },
   ];
 
-  const handleChangePassword = () => {
-    setIsChangePasswordModalOpen(true);
-  };
-
-  const handleClosePasswordModal = () => {
-    setIsChangePasswordModalOpen(false);
-  };
-
-  const handleFileSelect = (newFiles) => {
-    console.log('📁 Dashboard received NEW files:', newFiles);
-    console.log('📁 Number of NEW files:', newFiles.length);
-    console.log('📁 EXISTING files count:', selectedFiles.length);
-    
-    // Ensure we're working with an array
-    const newFilesArray = Array.isArray(newFiles) ? newFiles : [newFiles];
-    
-    // Combine existing files with new files
-    const combinedFiles = [...selectedFiles, ...newFilesArray];
-    
-    // Check if we exceed max files
-    if (combinedFiles.length > 5) {
-      const remainingSlots = 5 - selectedFiles.length;
-      if (remainingSlots <= 0) {
-        alert(`Maximum 5 files allowed. You already have 5 files selected. Please remove some files first.`);
-        return;
-      }
-      alert(`Maximum 5 files allowed. You have ${selectedFiles.length} file(s) already. Only adding ${remainingSlots} more file(s).`);
-      const limitedNewFiles = newFilesArray.slice(0, remainingSlots);
-      const finalFiles = [...selectedFiles, ...limitedNewFiles];
-      console.log('📁 Setting state with LIMITED combined files:', finalFiles.length);
-      setSelectedFiles(finalFiles);
-    } else {
-      console.log('📁 Setting state with ALL combined files:', combinedFiles.length);
-      setSelectedFiles(combinedFiles);
-    }
-    
-    // Log each file in the final array
-    const finalArray = combinedFiles.length <= 5 ? combinedFiles : [...selectedFiles, ...newFilesArray.slice(0, 5 - selectedFiles.length)];
-    finalArray.forEach((file, index) => {
-      console.log(`File ${index + 1}:`, {
-        name: file.name,
-        size: (file.size / 1024).toFixed(2) + ' KB',
-        type: file.type
-      });
-    });
-  };
-
-  const handleRemoveFile = (index) => {
-    console.log('🗑️ Removing file at index:', index);
-    const newFiles = selectedFiles.filter((_, i) => i !== index);
-    console.log('🗑️ Remaining files:', newFiles.length);
-    setSelectedFiles(newFiles);
-  };
-
-  const handleRemoveAllFiles = () => {
-    console.log('🗑️ Removing all files');
-    setSelectedFiles([]);
-  };
-
-  const handleContinue = (pricing) => {
-    console.log('📊 Pricing details:', pricing);
-    console.log('💰 Total price:', pricing.totalPrice);
-    console.log('💳 Requires payment:', pricing.requiresPayment);
-    console.log('📦 Files:', pricing.fileCount);
-    
-    if (pricing.requiresPayment) {
-      alert(
-        `Payment Required: $${pricing.totalPrice}\n\n` +
-        `Files: ${pricing.fileCount}\n` +
-        `Total size: ${pricing.formattedSize}\n` +
-        `Tier: ${pricing.tier.tier}\n\n` +
-        `Stripe payment integration will be added in Task 5.2\n\n` +
-        `For now, we'll simulate the upload process...`
-      );
-      
-      // Simulate upload after "payment"
-      setTimeout(() => {
-        alert('Upload simulation complete!');
-      }, 1000);
-    } else {
-      console.log('🚀 Starting free upload...');
-      alert(
-        `Ready to upload ${pricing.fileCount} file(s):\n\n` +
-        `Total size: ${pricing.formattedSize}\n` +
-        `Price: Free\n\n` +
-        `Upload logic will be implemented in Task 4.3`
-      );
-    }
-  };
+  const recentTransfers = transferHistory?.recent_uploads?.slice(0, 3) || [];
+  const allTransfers = transferHistory?.all_uploads || [];
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Header />
       
-      {/* Auth Status Banner */}
       <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
           <AuthStatus />
@@ -169,10 +196,9 @@ const Dashboard = () => {
           </nav>
         </div>
 
-        {/* Tab Content */}
+        {/* OVERVIEW TAB */}
         {activeTab === 'overview' && (
           <div className="space-y-8">
-            {/* Quick Stats */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
                 <div className="flex items-center">
@@ -184,7 +210,7 @@ const Dashboard = () => {
                       Total Uploads
                     </p>
                     <p className="text-2xl font-semibold text-gray-900 dark:text-white">
-                      {user?.total_uploads || 0}
+                      {transferHistory?.statistics?.total_uploads || 0}
                     </p>
                   </div>
                 </div>
@@ -200,7 +226,7 @@ const Dashboard = () => {
                       Storage Used
                     </p>
                     <p className="text-2xl font-semibold text-gray-900 dark:text-white">
-                      {user?.storage_used ? `${(user.storage_used / (1024 * 1024)).toFixed(1)} MB` : '0 MB'}
+                      {transferHistory?.statistics?.total_storage_display || '0 B'}
                     </p>
                   </div>
                 </div>
@@ -213,19 +239,18 @@ const Dashboard = () => {
                   </div>
                   <div className="ml-4">
                     <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                      Active Links
+                      Total Downloads
                     </p>
                     <p className="text-2xl font-semibold text-gray-900 dark:text-white">
-                      {user?.active_transfers || 0}
+                      {transferHistory?.statistics?.total_downloads || 0}
                     </p>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Main Content Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Quick Upload with Multiple Files Support */}
+              {/* Quick Upload */}
               <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
                 <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
                   Quick Upload
@@ -241,120 +266,230 @@ const Dashboard = () => {
                     onFileSelect={handleFileSelect}
                     multiple={true}
                     maxFiles={5}
-                    addMode={false}
                   />
                 ) : (
                   <div className="space-y-4">
-                    <div 
-                      className="relative"
-                      onDragOver={(e) => e.stopPropagation()}
-                      onDrop={(e) => e.stopPropagation()}
-                    >
-                      <MultiFilePreview 
-                        files={selectedFiles}
-                        onRemove={handleRemoveFile}
-                        onRemoveAll={handleRemoveAllFiles}
-                      />
-                    </div>
+                    <MultiFilePreview 
+                      files={selectedFiles}
+                      onRemove={handleRemoveFile}
+                      onRemoveAll={handleRemoveAllFiles}
+                    />
                     
-                    {/* Pricing Display - NEW */}
                     <PricingDisplay files={selectedFiles} />
                     
-                    {/* Add More Files Section - Only show if less than 5 files */}
                     {selectedFiles.length < 5 && (
-                      <div className="relative">
-                        <DragDropArea 
-                          onFileSelect={handleFileSelect}
-                          multiple={true}
-                          maxFiles={5}
-                          addMode={true}
-                        />
-                      </div>
+                      <DragDropArea 
+                        onFileSelect={handleFileSelect}
+                        multiple={true}
+                        maxFiles={5}
+                        addMode={true}
+                      />
                     )}
                     
-                    {/* Smart Upload Button - REPLACED */}
                     <div className="flex space-x-3">
                       <div className="flex-1">
                         <UploadButton 
                           files={selectedFiles}
                           onContinue={handleContinue}
+                          disabled={isUploading}
                         />
                       </div>
                       <CustomButton
                         variant="outline"
                         onClick={handleRemoveAllFiles}
+                        disabled={isUploading}
                       >
                         Cancel
                       </CustomButton>
                     </div>
                   </div>
                 )}
-
-                <div className="mt-4 flex justify-center space-x-4 text-xs text-gray-500 dark:text-gray-500">
-                  <span className="bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 px-2 py-1 rounded">
-                    ≤100MB Free
-                  </span>
-                  <span className="bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-2 py-1 rounded">
-                    ≤1GB $3
-                  </span>
-                  <span className="bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 px-2 py-1 rounded">
-                    ≤5GB $8
-                  </span>
-                </div>
               </div>
 
-              {/* Recent Transfers Placeholder */}
+              {/* Recent Transfers */}
               <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-                  Recent Transfers
-                </h2>
-                <div className="text-center py-8">
-                  <History className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500 mb-4" />
-                  <p className="text-gray-600 dark:text-gray-400 font-medium">
-                    No transfers yet
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                    Recent Transfers
+                  </h2>
+                  {recentTransfers.length > 0 && (
+                    <button
+                      onClick={() => setActiveTab('history')}
+                      className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                    >
+                      View All
+                    </button>
+                  )}
+                </div>
+                
+                {recentTransfers.length === 0 ? (
+                  <div className="text-center py-8">
+                    <History className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500 mb-4" />
+                    <p className="text-gray-600 dark:text-gray-400 font-medium">
+                      No transfers yet
+                    </p>
+                    <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">
+                      Your uploaded files will appear here
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {recentTransfers.map(transfer => {
+                      const tierColors = getTierColors(transfer.pricing_tier);
+                      return (
+                        <div
+                          key={transfer.id}
+                          className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                                {transfer.original_filename}
+                              </p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">
+                                {formatFileSize(transfer.file_size)} • {formatDate(transfer.created_at)}
+                              </p>
+                            </div>
+                            <span className={`text-xs px-2 py-1 rounded ${tierColors.bg} ${tierColors.text}`}>
+                              {transfer.pricing_tier}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TRANSFER HISTORY TAB */}
+        {activeTab === 'history' && (
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
+            <div className="p-6">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">
+                All Transfers ({allTransfers.length})
+              </h2>
+              
+              {loadingHistory ? (
+                <div className="text-center py-12">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                  <p className="mt-4 text-gray-600 dark:text-gray-400">Loading transfers...</p>
+                </div>
+              ) : allTransfers.length === 0 ? (
+                <div className="text-center py-12">
+                  <History className="mx-auto h-16 w-16 text-gray-400 dark:text-gray-500 mb-4" />
+                  <p className="text-gray-600 dark:text-gray-400 font-medium text-lg">
+                    No transfers found
                   </p>
-                  <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">
-                    Your uploaded files will appear here
+                  <p className="text-gray-500 dark:text-gray-500 mt-2">
+                    Upload your first file to see transfer history here
                   </p>
                   <CustomButton
-                    variant="outline"
-                    size="sm"
+                    variant="primary"
                     className="mt-4"
-                    onClick={() => setActiveTab('history')}
+                    onClick={() => setActiveTab('overview')}
                   >
-                    View Transfer History
+                    <Upload className="h-5 w-5 mr-2" />
+                    Upload Files
                   </CustomButton>
                 </div>
-              </div>
+              ) : (
+                <div className="space-y-4">
+                  {allTransfers.map(transfer => {
+                    const tierColors = getTierColors(transfer.pricing_tier);
+                    const statusColors = getStatusColors(transfer.status);
+                    const downloadLink = `${window.location.origin}/download/${transfer.download_token}`;
+                    
+                    return (
+                      <div
+                        key={transfer.id}
+                        className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                      >
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex-1 min-w-0">
+                            <h3 className="text-base font-semibold text-gray-900 dark:text-white truncate">
+                              {transfer.original_filename}
+                            </h3>
+                            <div className="flex items-center space-x-3 mt-1">
+                              <span className="text-sm text-gray-600 dark:text-gray-400">
+                                {formatFileSize(transfer.file_size)}
+                              </span>
+                              <span className="text-gray-400">•</span>
+                              <span className="text-sm text-gray-600 dark:text-gray-400">
+                                {formatDate(transfer.created_at)}
+                              </span>
+                              <span className="text-gray-400">•</span>
+                              <span className="text-sm text-gray-600 dark:text-gray-400">
+                                {transfer.download_count} downloads
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-2 ml-4">
+                            <span className={`text-xs px-2 py-1 rounded ${tierColors.bg} ${tierColors.text}`}>
+                              {transfer.pricing_tier}
+                            </span>
+                            <span className={`text-xs px-2 py-1 rounded ${statusColors.bg} ${statusColors.text}`}>
+                              {transfer.status}
+                            </span>
+                          </div>
+                        </div>
+
+                        {transfer.status === 'completed' && (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+                            {/* Download Link */}
+                            <div className="flex items-center space-x-2 bg-gray-50 dark:bg-gray-900 rounded p-2">
+                              <Link2 className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                              <input
+                                type="text"
+                                value={downloadLink}
+                                readOnly
+                                className="flex-1 text-xs bg-transparent border-0 focus:ring-0 text-gray-700 dark:text-gray-300"
+                              />
+                              <button
+                                onClick={() => copyToClipboard(downloadLink, `link-${transfer.id}`)}
+                                className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors flex-shrink-0"
+                                title="Copy link"
+                              >
+                                {copiedItem === `link-${transfer.id}` ? (
+                                  <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400" />
+                                ) : (
+                                  <Copy className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                                )}
+                              </button>
+                            </div>
+
+                            {/* Password */}
+                            <div className="flex items-center space-x-2 bg-gray-50 dark:bg-gray-900 rounded p-2">
+                              <Lock className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                              <code className="flex-1 text-xs font-mono text-gray-700 dark:text-gray-300">
+                                {transfer.download_password}
+                              </code>
+                              <button
+                                onClick={() => copyToClipboard(transfer.download_password, `pwd-${transfer.id}`)}
+                                className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors flex-shrink-0"
+                                title="Copy password"
+                              >
+                                {copiedItem === `pwd-${transfer.id}` ? (
+                                  <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400" />
+                                ) : (
+                                  <Copy className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                                )}
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         )}
 
-        {activeTab === 'history' && (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-              Transfer History
-            </h2>
-            <div className="text-center py-12">
-              <History className="mx-auto h-16 w-16 text-gray-400 dark:text-gray-500 mb-4" />
-              <p className="text-gray-600 dark:text-gray-400 font-medium text-lg">
-                No transfers found
-              </p>
-              <p className="text-gray-500 dark:text-gray-500 mt-2">
-                Upload your first file to see transfer history here
-              </p>
-              <CustomButton
-                variant="primary"
-                className="mt-4"
-                onClick={() => setActiveTab('overview')}
-              >
-                <Upload className="h-5 w-5 mr-2" />
-                Upload Files
-              </CustomButton>
-            </div>
-          </div>
-        )}
-
+        {/* ACCOUNT SETTINGS TAB */}
         {activeTab === 'settings' && (
           <div className="space-y-6">
             {/* Account Information */}
@@ -390,7 +525,7 @@ const Dashboard = () => {
                     <div>
                       <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Joined</p>
                       <p className="text-gray-900 dark:text-white">
-                        {formatDate(user?.date_joined)}
+                        {formatDateFull(user?.date_joined)}
                       </p>
                     </div>
                   </div>
@@ -400,7 +535,7 @@ const Dashboard = () => {
                     <div>
                       <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Last Login</p>
                       <p className="text-gray-900 dark:text-white">
-                        {formatDate(user?.last_login)}
+                        {formatDateFull(user?.last_login)}
                       </p>
                     </div>
                   </div>
@@ -415,7 +550,7 @@ const Dashboard = () => {
                   <CustomButton 
                     variant="outline" 
                     size="sm"
-                    onClick={handleChangePassword}
+                    onClick={() => setIsChangePasswordModalOpen(true)}
                   >
                     Change Password
                   </CustomButton>
@@ -425,7 +560,7 @@ const Dashboard = () => {
 
             {/* Security Settings */}
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-              <h2 className="text-xl font-semibent text-gray-900 dark:text-white mb-4">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
                 Security & Privacy
               </h2>
               
@@ -446,7 +581,7 @@ const Dashboard = () => {
 
                 <div className="flex items-center justify-between p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
                   <div className="flex items-center space-x-3">
-                    <Shield className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                    <Lock className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                     <div>
                       <p className="font-medium text-blue-900 dark:text-blue-100">
                         Password Protection Active
@@ -463,10 +598,21 @@ const Dashboard = () => {
         )}
       </main>
 
+      {/* Upload Progress Modal - UPDATED PROPS */}
+      <UploadProgressModal 
+        isOpen={showProgressModal}
+        onClose={handleCloseProgressModal}
+        uploadInfo={uploadInfo}        // Changed from uploads array
+        progress={progress}             // NEW
+        currentStatus={currentStatus}   // NEW
+        isUploading={isUploading}       // NEW
+        error={error}                   // NEW
+      />
+
       {/* Change Password Modal */}
       <ChangePasswordModal 
         isOpen={isChangePasswordModalOpen}
-        onClose={handleClosePasswordModal}
+        onClose={() => setIsChangePasswordModalOpen(false)}
       />
     </div>
   );

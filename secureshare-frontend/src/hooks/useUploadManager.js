@@ -1,159 +1,186 @@
-// FILE: src/hooks/useUploadManager.js
-// Fixed version with better state management
+// src/hooks/useUploadManager.js
+// UPDATED: For ZIP archive approach (ONE link, ONE password)
 
-import { useState, useCallback, useEffect } from 'react';
-import { formatFileSize } from '../utils/fileUtils';
+import { useState, useCallback } from 'react';
 
-export const useUploadManager = () => {
-  const [uploads, setUploads] = useState([]);
+/**
+ * Custom hook for managing file uploads with ZIP archive approach
+ * Multiple files (2+) = ONE ZIP file with ONE link and ONE password
+ * Single file = Normal upload with ONE link and ONE password
+ */
+const useUploadManager = () => {
   const [isUploading, setIsUploading] = useState(false);
-  const [showProgressModal, setShowProgressModal] = useState(false);
-  const [overallProgress, setOverallProgress] = useState(0);
+  const [uploadInfo, setUploadInfo] = useState(null);
+  const [error, setError] = useState(null);
+  const [progress, setProgress] = useState(0);
+  const [currentStatus, setCurrentStatus] = useState('');
 
-  const startUpload = useCallback((files) => {
-    console.log('🚀 startUpload called with files:', files);
-    
-    if (!files || files.length === 0) {
-      console.error('❌ No files provided to startUpload');
-      return;
-    }
-
-    // Create initial upload objects
-    const initialUploads = files.map(file => ({
-      fileName: file.name,
-      fileSize: formatFileSize(file.size),
-      progress: 0,
-      status: 'uploading',
-      file: file,
-      timeRemaining: 'Calculating...'
-    }));
-
-    console.log('📊 Initial uploads created:', initialUploads);
-
-    // Set state in correct order
-    setUploads(initialUploads);
-    setOverallProgress(0);
+  /**
+   * Main upload function - Creates ZIP for 2+ files, normal upload for 1 file
+   */
+  const startUpload = useCallback(async (files, authToken) => {
     setIsUploading(true);
-    
-    // Small delay to ensure state is set before showing modal
-    setTimeout(() => {
-      setShowProgressModal(true);
-      console.log('✅ Progress modal opened');
+    setError(null);
+    setProgress(0);
+    setUploadInfo(null);
+
+    try {
+      const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
       
-      // Start simulating upload for each file
-      initialUploads.forEach((_, index) => {
-        simulateUpload(index, files);
+      // Step 1: Prepare file data
+      setCurrentStatus('Preparing files...');
+      setProgress(10);
+
+      const filesData = files.map(file => ({
+        filename: file.name,
+        file_size: file.size,
+        mime_type: file.type || 'application/octet-stream'
+      }));
+
+      // Step 2: Create upload entries first
+      setCurrentStatus('Creating upload entries...');
+      setProgress(15);
+
+      const createResponse = await fetch(`${apiUrl}/files/bulk/create/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({ files: filesData })
       });
-    }, 100);
-  }, []);
 
-  const simulateUpload = (index, files) => {
-    console.log(`⏳ Starting simulation for file ${index + 1}`);
-    
-    let progress = 0;
-    const startTime = Date.now();
-    
-    const interval = setInterval(() => {
-      // Random progress increment (simulating network speed variation)
-      progress += Math.random() * 15;
-      
-      // Calculate estimated time remaining
-      const elapsed = Date.now() - startTime;
-      const rate = progress / elapsed;
-      const remaining = ((100 - progress) / rate) / 1000;
-      const timeRemaining = remaining > 60 
-        ? `${Math.ceil(remaining / 60)} min` 
-        : `${Math.ceil(remaining)} sec`;
-      
-      if (progress >= 100) {
-        progress = 100;
-        clearInterval(interval);
-        console.log(`✅ File ${index + 1} upload complete`);
-        updateUploadStatus(index, 'success', 100);
-      } else {
-        updateUploadProgress(index, Math.floor(progress), timeRemaining);
+      if (!createResponse.ok) {
+        const errorData = await createResponse.json();
+        throw new Error(errorData.error || 'Failed to create upload entries');
       }
-    }, 300); // Update every 300ms for smooth animation
-  };
 
-  const updateUploadProgress = useCallback((index, progress, timeRemaining = null) => {
-    setUploads(prev => prev.map((upload, i) => 
-      i === index 
-        ? { ...upload, progress, ...(timeRemaining && { timeRemaining }) }
-        : upload
-    ));
-  }, []);
+      const createData = await createResponse.json();
+      console.log('Created upload entry:', createData);
+      
+      // Backend returns single upload object, not array
+      const uploadId = createData.upload?.id;
+      if (!uploadId) {
+        throw new Error('No upload ID received from server. Response: ' + JSON.stringify(createData));
+      }
+      
+      console.log('Upload ID:', uploadId);
+      setProgress(25);
 
-  const updateUploadStatus = useCallback((index, status, progress = null) => {
-    setUploads(prev => {
-      const updated = prev.map((upload, i) => 
-        i === index 
-          ? { 
-              ...upload, 
-              status, 
-              ...(progress !== null && { progress }),
-              ...(status === 'success' && { timeRemaining: null })
+      // Step 3: Upload files content
+      setCurrentStatus(files.length > 1 ? 'Creating ZIP archive...' : 'Uploading file...');
+      setProgress(30);
+
+      const formData = new FormData();
+      
+      // Backend expects single 'upload_id' (not 'upload_ids')
+      formData.append('upload_id', uploadId);
+      
+      // Add files with indexed keys (file_0, file_1, etc.)
+      files.forEach((file, index) => {
+        formData.append(`file_${index}`, file);
+      });
+
+      const xhr = new XMLHttpRequest();
+
+      const uploadPromise = new Promise((resolve, reject) => {
+        xhr.upload.addEventListener('progress', (e) => {
+          if (e.lengthComputable) {
+            const uploadProgress = 30 + ((e.loaded / e.total) * 60);
+            setProgress(uploadProgress);
+          }
+        });
+
+        xhr.addEventListener('load', () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              resolve(JSON.parse(xhr.responseText));
+            } catch (e) {
+              reject(new Error('Invalid response from server'));
             }
-          : upload
-      );
+          } else {
+            try {
+              const errorData = JSON.parse(xhr.responseText);
+              reject(new Error(errorData.error || errorData.detail || xhr.statusText));
+            } catch (e) {
+              reject(new Error(`Upload failed: ${xhr.statusText}`));
+            }
+          }
+        });
 
-      // Check if all uploads are complete
-      const allComplete = updated.every(u => u.status === 'success' || u.status === 'error');
-      if (allComplete) {
-        console.log('🎉 All uploads complete!');
-        setIsUploading(false);
-      }
+        xhr.addEventListener('error', () => {
+          reject(new Error('Network error during upload'));
+        });
 
-      return updated;
-    });
-  }, []);
+        xhr.open('POST', `${apiUrl}/files/bulk/upload/`);
+        xhr.setRequestHeader('Authorization', `Bearer ${authToken}`);
+        xhr.send(formData);
+      });
 
-  const resetUploads = useCallback(() => {
-    console.log('🔄 Resetting uploads');
-    setUploads([]);
-    setIsUploading(false);
-    setShowProgressModal(false);
-    setOverallProgress(0);
-  }, []);
+      const uploadData = await uploadPromise;
+      console.log('Upload response:', uploadData);
+      setProgress(90);
 
-  const closeProgressModal = useCallback(() => {
-    console.log('❌ Closing progress modal');
-    setShowProgressModal(false);
-  }, []);
+      // Step 4: Finalize and set upload info
+      setCurrentStatus('Finalizing...');
+      
+      // Use data from upload response
+      const uploadInfo = uploadData.upload || uploadData;
+      
+      const finalUploadInfo = {
+        id: uploadInfo.id,
+        filename: uploadInfo.original_filename || uploadInfo.filename,
+        files: createData.contained_files ? createData.contained_files.map((name, idx) => ({
+          filename: name,
+          file_size: filesData[idx]?.file_size || 0
+        })) : filesData,
+        isZip: createData.is_zip || files.length > 1,
+        fileCount: createData.total_files || files.length,
+        totalSize: createData.total_size || files.reduce((sum, file) => sum + file.size, 0),
+        password: uploadInfo.download_password,
+        downloadLink: `${window.location.origin}/download/${uploadInfo.download_token}`,
+        downloadToken: uploadInfo.download_token,
+        status: 'completed',
+        uploadedAt: new Date().toISOString()
+      };
 
-  // Calculate overall progress whenever uploads change
-  useEffect(() => {
-    if (uploads.length > 0) {
-      const total = uploads.reduce((sum, u) => sum + u.progress, 0);
-      const average = Math.floor(total / uploads.length);
-      setOverallProgress(average);
+      setUploadInfo(finalUploadInfo);
+      setProgress(100);
+      setCurrentStatus('Complete!');
+
+      return { success: true, uploadInfo: finalUploadInfo };
+
+    } catch (err) {
+      console.error('Upload error:', err);
+      setError(err.message);
+      setCurrentStatus('Error');
+      
+      return { success: false, error: err.message };
+    } finally {
+      setIsUploading(false);
     }
-  }, [uploads]);
+  }, []);
 
-  // Check if modal can be closed (all files complete or have errors)
-  const canCloseModal = uploads.length > 0 && uploads.every(
-    u => u.status === 'success' || u.status === 'error'
-  );
-
-  // Debug logging
-  useEffect(() => {
-    console.log('📊 Upload Manager State:', {
-      uploads: uploads.length,
-      isUploading,
-      showProgressModal,
-      overallProgress,
-      canCloseModal
-    });
-  }, [uploads, isUploading, showProgressModal, overallProgress, canCloseModal]);
+  /**
+   * Reset upload state
+   */
+  const resetUpload = useCallback(() => {
+    setUploadInfo(null);
+    setError(null);
+    setIsUploading(false);
+    setProgress(0);
+    setCurrentStatus('');
+  }, []);
 
   return {
-    uploads,
     isUploading,
-    overallProgress,
-    showProgressModal,
-    canCloseModal,
+    uploadInfo,
+    error,
+    progress,
+    currentStatus,
     startUpload,
-    resetUploads,
-    closeProgressModal
+    resetUpload
   };
 };
+
+export default useUploadManager;
