@@ -33,9 +33,9 @@ os.makedirs(MEDIA_ROOT_PATH, exist_ok=True)
 os.makedirs(os.path.join(MEDIA_ROOT_PATH, 'uploads'), exist_ok=True)
 
 # Stripe Configuration
-STRIPE_SECRET_KEY = os.environ.get('STRIPE_SECRET_KEY', '')
-STRIPE_PUBLISHABLE_KEY = os.environ.get('STRIPE_PUBLISHABLE_KEY', '')
-STRIPE_WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET', '')
+STRIPE_SECRET_KEY = os.environ.get('STRIPE_SECRET_KEY')
+STRIPE_PUBLISHABLE_KEY = os.environ.get('STRIPE_PUBLISHABLE_KEY')
+STRIPE_WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET')
 STRIPE_CURRENCY = 'usd'
 
 FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:5173')
